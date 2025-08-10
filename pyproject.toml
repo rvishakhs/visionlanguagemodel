@@ -1,0 +1,28 @@
+[project]
+name = "visionlanguagemodel"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "rvishakhs",email = "rvishakhs@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+]
+
+[tool.poetry]
+packages = [{include = "visionlanguagemodel", from = "src"}]
+
+[[tool.poetry.source]]
+name = "pytorch"
+url = "https://download.pytorch.org/whl/cu129"
+
+
+[tool.poetry.dependencies]
+python = "^3.12"  # or your Python version
+torch = {version = "*", source = "pytorch"}
+torchvision = {version = "*", source = "pytorch"}
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
