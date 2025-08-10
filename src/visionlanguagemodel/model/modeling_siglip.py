@@ -105,6 +105,21 @@ class SiglipAttention(nn.Module):
         query_states = query_states.view(batch_size, seq_len, self.num_heads, self.head_dim).transpose(1, 2)
         key_states = key_states.view(batch_size, seq_len, self.num_heads, self.head_dim).transpose(1, 2)
         value_states = value_states.view(batch_size, seq_len, self.num_heads, self.head_dim).transpose(1, 2)
+        # Calculate the attention using the formula Q * K^T / sqrt(d_k). attn_weights : [Batch_size, Num_heads, Num_patches, Num_patches]
+        attn_weights = (torch.matmul(query_states, key_states.transpose(-1, -2)) * self.scale)
+
+        if attn_weights.size() != (batch_size, self.num_heads, seq_len, seq_len):
+            raise ValueError(
+                f"Attention weights should be of size {(batch_size, self.num_heads, seq_len, seq_len)} but is"
+                f" {attn_weights.size()}"
+            )
+    
+        # Apply the softmax row-wise attn_weights: [batch_size, Num_heads, num_patches, Num_patches]
+        attn_weights = nn.functional.softmax(attn_weights, dim=-1,dtype=torch.float32).to(hidden_states.dtype)
+
+        
+        
+
 
 
 
