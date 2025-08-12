@@ -116,9 +116,30 @@ class SiglipAttention(nn.Module):
     
         # Apply the softmax row-wise attn_weights: [batch_size, Num_heads, num_patches, Num_patches]
         attn_weights = nn.functional.softmax(attn_weights, dim=-1,dtype=torch.float32).to(hidden_states.dtype)
+        # Apply dropout layer 
+        attn_weights = nn.functional.dropout(attn_weights, p=self.dropout, training=self.training)
 
+        # Multiply the attention weights  by the value states. attn_output: [batch_size, Num_heads, Num_patches, Head_dim]
+        attn_output = torch.matmul(attn_weights, value_states)
+
+        if attn_output.size() != (batch_size, self.num_heads, seq_len, self.head_dim):
+            raise ValueError(
+                f"Attention outputs should be of size {(batch_size, self.num_heads, seq_len, self.head_dim)} but is"
+                f" {attn_output.size()}"
+            )
         
-        
+        # [Batch_size, num_heads, num_patches, Head_dim] -> [Batch_size, Num_patches, Num_Heads, Head_dim]
+        attn_output = attn_output.transpose(1, 2).contiguous()
+
+        # [Batch_size, Num_patches, Num_heads, head_dim] -> [Batch_size, num_patches, Embed_dim]
+        attn_output = attn_output.reshape(batch_size, seq_len, self.embed_dim)
+
+        attn_output = self.out_proj(attn_output)
+
+        return attn_output
+
+
+
 
 
 
@@ -174,6 +195,24 @@ class siglipEncoderLayer(nn.Module):
         hidden_states = residual + hidden_states
 
         return hidden_states
+    
+class siglipEncoder(nn.Module):
+    def __init__(self, config: siglipVisionConfig):
+        super().__init__()
+        self.config = config
+        self.layers = nn.ModuleList(
+            [siglipEncoderLayer(config) for _ in range(config.num_hidden_layers)]
+        )
+
+    def forward(self, inputs_embeds: torch.Tensor) -> torch.Tensor:
+        # inputs_embeds: [Batch_size, Num_patches, Embed_dim]
+        hidden_states = inputs_embeds
+
+        for encoder_layer in self.layers:
+            # Apply each encoder layer to the hidden states
+            hidden_states = encoder_layer(hidden_states)
+
+        return hidden_states
 
 
 class siglipVisionTransformer(nn.Module):
@@ -184,7 +223,7 @@ class siglipVisionTransformer(nn.Module):
 
 
         self.embeddings = siglipVisionEmbeddings(config)
-        self.encoder = siglipVisionEncoder(config)
+        self.encoder = siglipEncoder(config)
         self.post_layernorm = nn.LayerNorm(self.embed_dim, eps=config.layer_norm_eps)
 
     def forward(self, pixel_values: torch.Tensor) -> torch.Tensor:
