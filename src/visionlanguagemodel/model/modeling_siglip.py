@@ -140,11 +140,6 @@ class SiglipAttention(nn.Module):
 
 
 
-
-
-
-
-
 class SiglipMLP(nn.Module):
     def __init__(self, config):
         super().__init__()
